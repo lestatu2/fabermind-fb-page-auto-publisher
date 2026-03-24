@@ -29,6 +29,7 @@ require_once FBAP_PLUGIN_DIR . 'includes/class-image-processor.php';
 require_once FBAP_PLUGIN_DIR . 'includes/class-admin-settings.php';
 require_once FBAP_PLUGIN_DIR . 'includes/class-post-metabox.php';
 require_once FBAP_PLUGIN_DIR . 'includes/class-publisher.php';
+require_once FBAP_PLUGIN_DIR . 'includes/class-token-manager.php';
 require_once FBAP_PLUGIN_DIR . 'includes/class-plugin.php';
 
 \FBPageAutopublisher\Plugin::instance();

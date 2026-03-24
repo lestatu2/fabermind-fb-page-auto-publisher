@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace FBPageAutopublisher;
 
 const OPTION_KEY = 'fbap_settings';
+const CRON_HOOK_TOKEN_MAINTENANCE = 'fbap_token_maintenance';
 const META_ENABLED = '_fbap_enabled';
 const META_CUSTOM_MESSAGE = '_fbap_custom_message';
 const META_ALREADY_PUBLISHED = '_fbap_already_published';
@@ -30,6 +31,17 @@ function get_default_settings(): array
     return [
         'page_id' => '',
         'page_access_token' => '',
+        'app_id' => '',
+        'app_secret' => '',
+        'user_access_token' => '',
+        'user_token_expires_at' => '',
+        'last_token_refresh_at' => '',
+        'last_token_refresh_status' => '',
+        'last_token_refresh_message' => '',
+        'last_token_debug_at' => '',
+        'last_token_debug_status' => '',
+        'last_token_debug_message' => '',
+        'token_warning_sent_at' => '',
         'enabled' => 1,
         'message_template' => "{title}\n\n{excerpt}\n\n{link}",
         'first_publish_only' => 1,
@@ -94,6 +106,37 @@ function get_post_enabled(int $post_id): bool
     }
 
     return (bool) absint((string) $value);
+}
+
+function get_token_expiration_timestamp(): int
+{
+    $value = (string) get_setting('user_token_expires_at', '');
+
+    if ($value === '') {
+        return 0;
+    }
+
+    $timestamp = strtotime($value);
+
+    return $timestamp !== false ? $timestamp : 0;
+}
+
+function get_token_days_remaining(): ?int
+{
+    $timestamp = get_token_expiration_timestamp();
+
+    if ($timestamp <= 0) {
+        return null;
+    }
+
+    return (int) floor(($timestamp - time()) / DAY_IN_SECONDS);
+}
+
+function get_admin_email_address(): string
+{
+    $email = get_option('admin_email', '');
+
+    return is_string($email) ? sanitize_email($email) : '';
 }
 
 function mask_token(string $token): string

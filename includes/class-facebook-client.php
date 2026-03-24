@@ -34,6 +34,97 @@ class Facebook_Client
         );
     }
 
+    public function refresh_user_access_token(string $app_id, string $app_secret, string $user_token): array
+    {
+        $url = add_query_arg(
+            [
+                'grant_type' => 'fb_exchange_token',
+                'client_id' => trim($app_id),
+                'client_secret' => trim($app_secret),
+                'fb_exchange_token' => trim($user_token),
+            ],
+            $this->graph_base . 'oauth/access_token'
+        );
+
+        return $this->request_url($url, 'oauth/access_token');
+    }
+
+    public function get_page_access_token(string $user_token, string $page_id): array
+    {
+        $url = add_query_arg(
+            [
+                'access_token' => trim($user_token),
+            ],
+            $this->graph_base . 'me/accounts'
+        );
+
+        $response = $this->request_url($url, 'me/accounts');
+
+        if (! $response['success'] || ! is_array($response['body'])) {
+            return $response;
+        }
+
+        $pages = $response['body']['data'] ?? null;
+
+        if (! is_array($pages)) {
+            return [
+                'success' => false,
+                'http_code' => (int) ($response['http_code'] ?? 0),
+                'endpoint' => 'me/accounts',
+                'body' => [
+                    'error' => [
+                        'message' => 'Meta did not return any page data for the connected user.',
+                    ],
+                ],
+                'page_access_token' => '',
+            ];
+        }
+
+        foreach ($pages as $page) {
+            if (! is_array($page)) {
+                continue;
+            }
+
+            if ((string) ($page['id'] ?? '') !== trim($page_id)) {
+                continue;
+            }
+
+            return [
+                'success' => true,
+                'http_code' => (int) ($response['http_code'] ?? 200),
+                'endpoint' => 'me/accounts',
+                'body' => $response['body'],
+                'page_access_token' => (string) ($page['access_token'] ?? ''),
+            ];
+        }
+
+        return [
+            'success' => false,
+            'http_code' => (int) ($response['http_code'] ?? 0),
+            'endpoint' => 'me/accounts',
+            'body' => [
+                'error' => [
+                    'message' => sprintf('The configured page ID %s was not returned by Meta for the connected user.', $page_id),
+                ],
+            ],
+            'page_access_token' => '',
+        ];
+    }
+
+    public function debug_token(string $app_id, string $app_secret, string $input_token): array
+    {
+        $app_token = trim($app_id) . '|' . trim($app_secret);
+        $url = add_query_arg(
+            [
+                'input_token' => trim($input_token),
+                'access_token' => $app_token,
+            ],
+            $this->graph_base . 'debug_token'
+        );
+
+        return $this->request_url($url, 'debug_token');
+    }
+
     private function request(string $endpoint, string $page_id, array $body): array
     {
         $url = trailingslashit($this->graph_base . rawurlencode($page_id)) . $endpoint;
@@ -45,6 +136,23 @@ class Facebook_Client
             ]
         );
 
+        return $this->normalize_response($response, $endpoint);
+    }
+
+    private function request_url(string $url, string $endpoint): array
+    {
+        $response = wp_remote_get(
+            $url,
+            [
+                'timeout' => 20,
+            ]
+        );
+
+        return $this->normalize_response($response, $endpoint);
+    }
+
+    private function normalize_response(mixed $response, string $endpoint): array
+    {
         if (is_wp_error($response)) {
             return [
                 'success' => false,
